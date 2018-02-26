@@ -1,0 +1,383 @@
+
+
+.container {
+	margin-top: 42px;
+}
+
+.header {
+	height: 42px;
+	line-height: 42px;
+	background: #47aef7;
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	z-index: 101;
+}
+.header .container {
+	margin-top: 0;
+}
+.header .logo {
+	color: #fff;
+}
+.navigation a {
+	line-height: 42px;
+	padding: 0 7px;
+	color: #bcddf5;
+}
+
+.main .jumbotron {
+	background: #fff;
+}
+.loginform {
+
+}
+.loginform__buttons {
+
+}
+.loginform__buttons button {
+	margin-right: 5px;
+}
+.loginmainform {
+	width: 100%;
+	margin-top: 25px;
+}
+.registermainform {
+	width: 100%;
+	margin-top: 25px;
+}
+.registermainform h4 {
+	text-align: center;
+}
+.registermainform .form-inline {
+	flex-flow: column wrap;
+
+}
+.registermainform .form-inline input {
+	width: 350px;
+	margin: 5px 0;
+}
+.registermainform__birthday_label {
+	color: #808080;
+}
+.registermainform button {
+	margin-top: 10px;
+	width: 350px;
+}
+.registermainform input::invalid {
+	border: 1px solid red;
+}
+
+.search_control {
+	display: -webkit-flex;
+	display: -moz-flex;
+	display: -ms-flex;
+	display: -o-flex;
+	display: flex;
+	justify-content: space-around;
+	align-content: stretch;
+}
+.search_control__usernames {
+	display: -webkit-flex;
+	display: -moz-flex;
+	display: -ms-flex;
+	display: -o-flex;
+	display: flex;
+}
+.search_control__username.btn {
+	display: inline-block;
+	margin: 0 3px;
+    color: #2b71a2;
+    background-color: #d3e6fb;
+    border: none;
+    position: relative;
+    padding-right: 30px;
+
+}
+.search_control .form-control {
+    width: 100%;
+    border-radius: 0;
+    border: none;
+    outline: none;
+    margin-right: 2px;
+}
+.search_control .form-control:focus, .search_control .form-control:active {
+	outline: none;
+	border: 0;
+}
+.search_control .remove {
+    position: absolute;
+    right: 0px;
+    width: 25px;
+}
+
+.dialogs {
+	width: 100%;
+	margin-top: 25px;
+}
+.dialogs__search {
+	width: 100%;
+	height: 45px;
+	border-bottom: 1px solid #eee;
+}
+.dialogs__list {
+	margin-top: 10px;
+}
+.dialogs__item {
+	cursor: pointer;
+	border-bottom: 1px solid #eee;
+	padding: 10px 0;
+}
+.dialogs__item__avatar {
+	max-width: 50px;
+	border-radius: 50%;
+	position: relative;
+}
+.dialogs__item__avatar_wrap.online:after {
+    bottom: 5%;
+    right: 5%;
+    border: 3px solid #fff;
+    content: '';
+    height: 8px;
+    width: 8px;
+    position: absolute;
+    background-color: #8ac176;
+    border-radius: 50%;
+} 
+.media__last_message {
+	margin-top: 10px;
+}
+.last_message__avatar {
+	max-width: 25px;
+	border-radius: 50%;
+}
+.last_message__body {
+	padding: 3px 6px;
+}
+.last_message__body.not_read {
+	background: #f0f2f5;
+}
+.dialogs__nofind {
+	display: -webkit-flex;
+	display: -moz-flex;
+	display: -ms-flex;
+	display: -o-flex;
+	display: flex;
+	align-items: center;
+	flex-flow: column;
+
+}
+.dialogs__nofind_text {
+	font-size: 18px;
+	line-height: 80px;
+}
+.messages_page {
+	position: relative;
+	width: 700px;
+	float: left;
+	height: 100%;
+	min-height: 550px;
+}
+.messages_page_inner {
+}
+.messages_page__body {
+	padding-top: 30px;
+	padding-bottom: 62px;
+	margin: 0 15px;
+    height: 100%;
+    overflow-y: auto;
+}
+.messages__item.media {
+	position: relative;
+	margin: 0 7px;
+	padding: 6px 30px 7px 0;
+	display: block;
+}
+.messages__item.not_read {
+	background: #f0f2f5;
+}
+.messages__item h5 {
+	font-size: 1rem;
+	display: inline-block;
+}
+.messages__item__avatar_wrap {
+	max-width: 36px;
+    position: absolute;
+    left: 36px;
+    top: 9px;
+    z-index: 2;
+}
+.messages__item__avatar_wrap.online:after {
+    bottom: 5%;
+    right: 5%;
+    /*border: 3px solid #fff;*/
+    content: '';
+    height: 8px;
+    width: 8px;
+    position: absolute;
+    background-color: #8ac176;
+    border-radius: 50%;
+} 
+.messages__item__avatar {
+	max-width: 36px;
+	border-radius: 50%;
+}
+.messages__item__body {
+    outline: 0;
+    margin: 0 49px 0 78px;
+    line-height: 18px;
+    word-wrap: break-word;
+}
+.messages__item .media__body {
+	word-wrap: break-word;
+}
+.messages_page__input {
+	height: 62px;
+	width: 700px;
+    margin: 0 15px;
+	position: fixed;
+	background: #fff;
+	bottom: 0;
+	border-top: 1px solid #eee;
+}
+.input__box {
+	display: -webkit-flex;
+	display: -moz-flex;
+	display: -ms-flex;
+	display: -o-flex;
+	display: flex;
+	-ms-align-items: center;
+	align-items: center;
+	flex-direction: row;
+    justify-content: space-around;
+}
+.messages_page__input .message_input {
+	width: 100%;
+    margin: 0 10px;
+}
+#dropzone {
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: #555;
+    font-size: 18px;
+    text-align: center;
+    width: 100%;
+    height: 100%;
+    margin: 30px auto;
+    background: #eee;
+    border: 1px solid #ccc;
+    -webkit-border-radius: 5px;
+    -moz-border-radius: 5px;
+    border-radius: 5px;
+    display: none;
+}
+#dropzone .dropdoc {
+    display: -webkit-flex;
+    display: -ms-flexbox;
+    display: flex;
+    -webkit-flex-direction: column;
+    -ms-flex-direction: column;
+    flex-direction: column;
+    -webkit-justify-content: center;
+    -ms-flex-pack: center;
+    justify-content: center;
+    color: #6584a8;
+    line-height: 1.5em;
+}
+#dropzone.dragstart {
+	display: block;
+}
+
+#dropzone.hover {
+    background: #ddd;
+    border-color: #aaa;
+}
+
+#dropzone.error {
+    background: #faa;
+    border-color: #f00;
+}
+
+#dropzone.drop {
+    background: #afa;
+    border-color: #0f0;
+}
+
+
+
+.profile_page {
+	width: 100%;
+	margin-top: 25px;
+}
+
+.profile_page__avatar {
+	margin:10px auto;
+	display: block;
+	max-width: 200px;
+}
+.profile_page__buttons button {
+	width: 100%;
+	margin-top: 5px;
+}
+.profile_status {
+    color: #000;
+    border-bottom: none;
+    font-size: 1em;
+    font-weight: 400;
+    -webkit-font-smoothing: subpixel-antialiased;
+    -moz-osx-font-smoothing: auto;
+    margin: 0;
+    padding: 0;
+    float: right;
+    font-size: 12.5px;
+    margin-top: 5px;
+    padding-left: 10px;
+    line-height: 18px;
+    color: #939393;
+    text-align: center;
+}
+
+
+/* Modul */
+#mail_box_editable {
+    background: #fff;
+    color: #000;
+    border: 1px solid #c0cad5;
+    min-height: 120px;
+    padding: 5px 30px 5px 5px;
+    vertical-align: top;
+    margin: 0;
+    overflow: auto;
+    outline: 0;
+    line-height: 150%;
+    word-wrap: break-word;
+    cursor: text;
+}
+.warn {
+	color: #939393;
+	font-size: 12.5px;
+}
+.media__recepient {
+	margin: 0 0 10px 0;
+}
+.recepient__avatar {
+	max-width: 35px;
+	margin-top: 2px;
+	border-radius: 50%;
+}
+.recepient__body {
+	padding: 3px 6px;
+}
+
+
+.none {
+	display: none;
+}
+div.alert {
+	position: fixed;
+	left: 0;
+	top: 0;
+	z-index: 599;
+	border-radius: 0;
+}
