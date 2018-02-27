@@ -359,8 +359,8 @@ class AddMessageForm extends React.Component {
 	componentDidMount() {
 		// before render
 		let $this = this, dragTimer;
-		$.event.props.push('dataTransfer');
 		$(document).on('dragenter dragstart dragend dragleave dragover drag drop', (e) => {
+			$.e.props.push('dataTransfer');
 			e.preventDefault();
 		});
 		$(document).on({
@@ -1523,4 +1523,9 @@ $(document).ready(function(){
  */
 function isConsole(a = 'test') {
 	if(typeof a === 'number') {
-		isConsole('Thats good #' + a
+		isConsole('Thats good #' + a)
+	}
+	else {
+		console.log(a)
+	}
+}
