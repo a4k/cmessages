@@ -37,7 +37,7 @@
         "process-nextick-args": "1.0.7",
         "react": "16.2.0",
         "react-dropzone": "4.2.8",
-        "socket.io": "2.0.4",
+        "socket.io": "2.5.0",
         "string": "3.3.3",
         "transformers": "2.1.0",
         "util-deprecate": "1.0.2",
