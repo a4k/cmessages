@@ -1,0 +1,132 @@
+// utils.js
+import JsonPointer from 'json-pointer';
+import { inferType } from './infer';
+
+// -------- служебное --------
+
+function refPointer($ref) {
+  const pointer = decodeURIComponent($ref);
+  return pointer.startsWith('#') ? pointer.substring(1) : pointer;
+}
+
+function shouldIgnoreRefSiblings(spec) {
+  return String(spec.openapi ?? '').startsWith('3.0') || spec.swagger !== undefined;
+}
+
+function mergeRefSiblings(referenced, siblings) {
+  const merged = mergeDeep(referenced, siblings);
+  if (Array.isArray(referenced.required) && Array.isArray(siblings.required)) {
+    merged.required = [...new Set([...referenced.required, ...siblings.required])];
+  }
+  return merged;
+}
+
+// -------- $ref + xml --------
+
+export function resolveRef(schema, spec) {
+  if (!spec) {
+    throw new Error('Your schema contains $ref. You must provide full specification in the third parameter.');
+  }
+  const pointer = refPointer(schema.$ref);
+  const siblings = Object.fromEntries(
+    Object.entries(schema).filter(([key, value]) => key !== '$ref' && value !== undefined),
+  );
+  const referenced = Object.keys(siblings).length && !shouldIgnoreRefSiblings(spec)
+    ? mergeRefSiblings(JsonPointer.get(spec, pointer), siblings)
+    : JsonPointer.get(spec, pointer);
+  return { pointer, referenced };
+}
+
+// xml самого $ref (с именем = имя компонента, если xml.name не задан)
+export function refXml(schema, spec) {
+  if (!spec || !JsonPointer.has(spec, refPointer(schema.$ref))) return null;
+  const { pointer, referenced } = resolveRef(schema, spec);
+  return { ...referenced?.xml, name: referenced?.xml?.name || pointer.split('/').pop() };
+}
+
+// -------- allOf-разбор --------
+
+const STRUCTURAL_KEYWORDS = [
+  '$ref', '$dynamicRef', 'properties', 'patternProperties', 'additionalProperties',
+  'items', 'prefixItems', 'allOf', 'oneOf', 'anyOf',
+];
+
+function hasOwnValue(schema) {
+  return schema.example !== undefined || schema.const !== undefined || schema.default !== undefined
+    || !!schema.examples?.length || !!schema.enum?.length;
+}
+
+function isAnnotationOnly(schema) {
+  return !!schema && typeof schema === 'object' && !hasOwnValue(schema)
+    && !STRUCTURAL_KEYWORDS.some(keyword => schema[keyword] !== undefined);
+}
+
+function isSingleRefAllOf(allOf) {
+  if (!Array.isArray(allOf)) return false;
+  const refs = allOf.filter(child => child?.$ref);
+  return refs.length === 1 && allOf.every(child => child?.$ref || isAnnotationOnly(child));
+}
+
+export function isAnnotatedRef(schema) {
+  return !!schema && isSingleRefAllOf(schema.allOf) && schema.xml === undefined
+    && isAnnotationOnly({ ...schema, allOf: undefined });
+}
+
+export function isComposedAllOf(schema) {
+  return !!schema?.allOf && !isAnnotatedRef(schema);
+}
+
+// xml имени первого $ref в allOf
+export function firstRefXml(allOf, spec) {
+  const ref = allOf.find(child => child?.$ref);
+  const xml = ref && refXml(ref, spec);
+  return xml ? { xml } : null;
+}
+
+// -------- типы --------
+
+export function isSampledAsArray(schema) {
+  return !!schema && typeof schema === 'object' && inferType(schema) === 'array';
+}
+
+export function isArraySchema(schema) {
+  const type = schema?.type;
+  return (Array.isArray(type) ? type[0] : type) === 'array';
+}
+
+// -------- XML-хелперы --------
+
+export function getXMLAttributes(schema) {
+  return {
+    name: schema?.xml?.name || '',
+    prefix: schema?.xml?.prefix || '',
+    namespace: schema?.xml?.namespace || null,
+    attribute: schema?.xml?.attribute ?? false,
+    wrapped: schema?.xml?.wrapped ?? false,
+  };
+}
+
+export function prefixed(name, prefix) {
+  return prefix ? `${prefix}:${name}` : name;
+}
+
+export function withNamespace(value, prefix, namespace) {
+  if (!namespace) return value;
+  const attribute = `$xmlns${prefix ? ':' + prefix : ''}`;
+  if (value !== null && typeof value === 'object') {
+    return Object.assign(Array.isArray(value) ? [...value] : { ...value }, { [attribute]: namespace });
+  }
+  return { [attribute]: namespace, '#text': value };
+}
+
+// Имена и namespace для элементов литерального массива:
+// items.xml.name / items.$ref → иначе fallbackName
+export function nameLiteralItems(values, schema, spec, fallbackName) {
+  const items = schema?.items;
+  const itemRefXml = items?.$ref && refXml(items, spec);
+  const item = getXMLAttributes(itemRefXml ? { xml: itemRefXml } : items);
+  return {
+    name: item.name ? prefixed(item.name, item.prefix) : fallbackName,
+    values: values.map(value => withNamespace(value, item.prefix, item.namespace)),
+  };
+}
