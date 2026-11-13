@@ -1,3 +1,195 @@
+// openapi-sampler.js
+import { traverse, clearCache } from './traverse';
+import { sampleArray, sampleBoolean, sampleNumber, sampleObject, sampleString } from './samplers/index';
+import { XMLBuilder } from 'fast-xml-parser';
+import {
+  firstRefXml, getXMLAttributes, isArraySchema, isComposedAllOf,
+  isSampledAsArray, nameLiteralItems, prefixed, resolveRef, withNamespace,
+  flattenSchema // <--- ДОБАВЛЕНО
+} from './utils';
+
+// ... константы ...
+
+// 1. Обновляем isSoapSchema, чтобы он заглядывал вглубь
+function isSoapSchema(schema, spec) {
+  if (!schema) return false;
+  if (
+    schema['x-soap'] === true ||
+    schema['x-soap-envelope'] === true ||
+    schema['x-soap-operation'] !== undefined ||
+    schema['x-soap-namespace'] !== undefined
+  ) return true;
+
+  if (schema.$ref && spec) {
+    try { return isSoapSchema(resolveRef(schema, spec).referenced, spec); }
+    catch { return false; }
+  }
+
+  // Проверяем вложенные структуры
+  const subSchemas = [
+    ...(schema.allOf || []),
+    ...(schema.oneOf || []),
+    ...(schema.anyOf || [])
+  ];
+  return subSchemas.some(sub => isSoapSchema(sub, spec));
+}
+
+// 2. Обновляем генератор CDATA (используем flattenSchema)
+function generateCdataContent(cdataSchema, options, spec) {
+  try {
+    const resolved = resolveSchema(cdataSchema, spec);
+    const flatSchema = flattenSchema(resolved, spec);
+    const encoding = flatSchema['x-cdata-encoding'] || 'UTF-8';
+
+    const nested = traverse(cdataSchema, { ...options, format: 'xml' }, spec).value;
+    let xml = convertJsonToXml(nested, flatSchema, spec, { format: 'xml' });
+
+    xml = xml.replace(/^<\?xml[^?]*\?>\s*/, `<?xml version="1.0" encoding="${encoding}"?>\n`);
+    return `\n${xml.trimEnd()}\n`;
+  } catch (e) {
+    if (!options.quiet) console.warn('SOAP: failed to build CDATA payload:', e.message);
+    return '';
+  }
+}
+
+// 3. Обновляем applySoapPropertyAttributes (применяем flattenSchema)
+function applySoapPropertyAttributes(value, schema, spec, options) {
+  if (value === undefined || value === null) return value;
+
+  const resolved = resolveSchema(schema, spec);
+  const flatSchema = flattenSchema(resolved, spec); // <--- СПЛЮЩИВАЕМ
+  const xsiType = resolveXsiType(flatSchema, options);
+
+  // 1) CDATA
+  if (flatSchema['x-cdata-schema']) {
+    const wrapped = {};
+    if (xsiType) wrapped['$xsi:type'] = xsiType;
+    wrapped['#cdata'] = generateCdataContent(flatSchema['x-cdata-schema'], options, spec);
+    return wrapped;
+  }
+
+  // 2) Массивы
+  if (Array.isArray(value)) {
+    let itemSchema = flatSchema.items;
+    if (Array.isArray(itemSchema)) itemSchema = itemSchema[0];
+    return value.map(v => applySoapPropertyAttributes(v, itemSchema, spec, options));
+  }
+
+  // 3) Объекты
+  if (typeof value === 'object') {
+    const props = flatSchema.properties || {};
+    const result = {};
+    for (const [key, childValue] of Object.entries(value)) {
+      const childSchema = props[key];
+      const childResolved = resolveSchema(childSchema, spec);
+      const childFlat = flattenSchema(childResolved, spec);
+      
+      const processed = applySoapPropertyAttributes(childValue, childSchema, spec, options);
+
+      if (childFlat?.xml?.attribute === true) {
+        const attrValue = processed && typeof processed === 'object' && '#text' in processed
+          ? processed['#text'] : processed;
+        const attrName = childFlat.xml.name || key;
+        result[`$${attrName}`] = attrValue;
+      } else {
+        result[key] = processed;
+      }
+    }
+    if (xsiType) result['$xsi:type'] = xsiType;
+    return result;
+  }
+
+  // 4) Примитив
+  const cdata = flatSchema?.['x-cdata'] === true;
+  if (!xsiType && !cdata) return value;
+  const wrapped = {};
+  if (xsiType) wrapped['$xsi:type'] = xsiType;
+  wrapped[cdata ? '#cdata' : '#text'] = value;
+  return wrapped;
+}
+
+// 4. Обновляем buildSoapEnvelope (читаем настройки из плоской схемы)
+function buildSoapEnvelope(value, schema, spec, options) {
+  const resolved = resolveSchema(schema, spec);
+  const flatSchema = flattenSchema(resolved, spec); // <--- СПЛЮЩИВАЕМ
+
+  const operationName = flatSchema['x-soap-operation'] || flatSchema.xml?.name || 'Operation';
+  const namespace = flatSchema['x-soap-namespace'] || flatSchema.xml?.namespace;
+  const prefix = flatSchema['x-soap-prefix'] || flatSchema.xml?.prefix || 'NS1';
+  const autotype = flatSchema['x-soap-autotype'] !== false;
+  const encodingStyle = flatSchema['x-soap-encoding-style'];
+
+  const processed = applySoapPropertyAttributes(value, flatSchema, spec, { autotype });
+
+  // ... остальной код без изменений ...
+  const operationKey = namespace ? `${prefix}:${operationName}` : operationName;
+  const operationValue = namespace ? withNamespace(processed, prefix, namespace) : processed;
+
+  const envelopeAttrs = {
+    '$xmlns:SOAP-ENV': SOAP_ENVELOPE_NS,
+    '$xmlns:xsi': SOAP_XSI_NS,
+    '$xmlns:xsd': SOAP_XSD_NS,
+  };
+  if (encodingStyle) envelopeAttrs['$xmlns:SOAP-ENC'] = SOAP_ENC_NS;
+
+  const body = encodingStyle
+    ? { '$SOAP-ENC:encodingStyle': encodingStyle, [operationKey]: operationValue }
+    : { [operationKey]: operationValue };
+
+  const envelope = { 'SOAP-ENV:Envelope': { ...envelopeAttrs, 'SOAP-ENV:Body': body } };
+
+  return '<?xml version="1.0" encoding="UTF-8"?>\n' + makeXmlBuilder().build(envelope);
+}
+
+// utils.js
+export function flattenSchema(schema, spec, seen = new Set()) {
+  if (!schema || typeof schema !== 'object') return schema || {};
+
+  let result = { ...schema };
+  let allRequired = new Set(schema.required || []);
+
+  const mergeSub = (subSchema) => {
+    const flatSub = flattenSchema(subSchema, spec, seen);
+    result = mergeDeep(result, flatSub);
+    if (Array.isArray(flatSub.required)) {
+      flatSub.required.forEach(r => allRequired.add(r));
+    }
+  };
+
+  if (schema.$ref && spec) {
+    const pointer = schema.$ref;
+    if (seen.has(pointer)) return {}; // защита от зацикливания
+    seen.add(pointer);
+    try {
+      const resolved = resolveRef(schema, spec).referenced;
+      mergeSub(resolved);
+      delete result.$ref;
+    } catch (e) { /* ignore */ }
+  }
+
+  if (Array.isArray(schema.allOf)) {
+    for (const sub of schema.allOf) {
+      mergeSub(sub);
+    }
+    delete result.allOf;
+  }
+
+  if (Array.isArray(schema.oneOf) && schema.oneOf.length) {
+    mergeSub(schema.oneOf[0]);
+  }
+
+  if (Array.isArray(schema.anyOf) && schema.anyOf.length) {
+    mergeSub(schema.anyOf[0]);
+  }
+
+  if (allRequired.size > 0) {
+    result.required = Array.from(allRequired);
+  }
+
+  return result;
+}
+
+
 // utils.js
 import JsonPointer from 'json-pointer';
 import { inferType } from './infer';
